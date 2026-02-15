@@ -15,7 +15,7 @@ import * as htmlToImage from "html-to-image";
 
 export default function MagicWandBuilder() {
   const [mode, setMode] = useState("adult");
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [savedWands, setSavedWands] = useState([]);
 
   const [form, setForm] = useState({
@@ -30,8 +30,8 @@ export default function MagicWandBuilder() {
 
   const [description, setDescription] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
-  const [rarity, setRarity] = useState(null);
-  const [stats, setStats] = useState(null);
+  const [rarity, setRarity] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ power: number; control: number; wisdom: number; charm: number } | null>(null);
 
   // =============================
   // AUTH (Mock – Replace with Supabase/Firebase)
@@ -49,7 +49,7 @@ export default function MagicWandBuilder() {
   // =============================
   // FORM HANDLER
   // =============================
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -64,7 +64,7 @@ export default function MagicWandBuilder() {
     return "Common";
   };
 
-  const generateStats = (rarityTier) => {
+  const generateStats = (rarityTier: string): { power: number; control: number; wisdom: number; charm: number } => {
     const base = {
       power: Math.floor(Math.random() * 50) + 50,
       control: Math.floor(Math.random() * 50) + 50,
@@ -83,7 +83,7 @@ export default function MagicWandBuilder() {
 
     return Object.fromEntries(
       Object.entries(base).map(([k, v]) => [k, Math.floor(v * multiplier)])
-    );
+    ) as { power: number; control: number; wisdom: number; charm: number };
   };
 
   // =============================
