@@ -9,6 +9,24 @@ import { Sparkles, Save, Wand2, Baby, Crown, Share2, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import * as htmlToImage from "html-to-image";
 
+type Wand = {
+  age: string;
+  personality: string;
+  house: string;
+  wood: string;
+  specialTrait: string;
+  length: string;
+  handleDiameter: string;
+  description: string;
+  rarity: string | null;
+  stats: {
+    power: number;
+    control: number;
+    wisdom: number;
+    charm: number;
+  } | null;
+};
+
 // NOTE:
 // This version is structured for a deploy-ready Next.js App Router project.
 // To connect a real database, plug in Supabase / Firebase in the marked sections.
@@ -16,7 +34,7 @@ import * as htmlToImage from "html-to-image";
 export default function MagicWandBuilder() {
   const [mode, setMode] = useState("adult");
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
-  const [savedWands, setSavedWands] = useState([]);
+  const [savedWands, setSavedWands] = useState<Wand[]>([]);
 
   const [form, setForm] = useState({
     age: "",
