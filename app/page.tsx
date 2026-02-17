@@ -1,255 +1,225 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Save, Wand2, Baby, Crown, Share2, Star } from "lucide-react";
-import { motion } from "framer-motion";
-import * as htmlToImage from "html-to-image";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 
-type Wand = {
+type FormData = {
   age: string;
   personality: string;
-  house: string;
+  houseColor: string;
   wood: string;
-  specialTrait: string;
+  style: string;
+  woodTone: string;
   length: string;
-  handleDiameter: string;
-  description: string;
-  rarity: string | null;
-  stats: {
-    power: number;
-    control: number;
-    wisdom: number;
-    charm: number;
-  } | null;
 };
 
-// NOTE:
-// This version is structured for a deploy-ready Next.js App Router project.
-// To connect a real database, plug in Supabase / Firebase in the marked sections.
-
-export default function MagicWandBuilder() {
-  const [mode, setMode] = useState("adult");
-  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
-  const [savedWands, setSavedWands] = useState<Wand[]>([]);
-
-  const [form, setForm] = useState({
+export default function Home() {
+  const [form, setForm] = useState<FormData>({
     age: "",
     personality: "",
-    house: "",
+    houseColor: "",
     wood: "",
-    specialTrait: "",
-    length: "12.25",
-    handleDiameter: "1.375",
+    style: "",
+    woodTone: "",
+    length: "",
   });
 
-  const [description, setDescription] = useState("");
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [rarity, setRarity] = useState<string | null>(null);
-  const [stats, setStats] = useState<{ power: number; control: number; wisdom: number; charm: number } | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [price, setPrice] = useState<number>(39.99);
+  const [generated, setGenerated] = useState(false);
 
-  // =============================
-  // AUTH (Mock – Replace with Supabase/Firebase)
-  // =============================
-  const login = () => {
-    const mockUser = { id: "123", name: "Wizard" };
-    setUser(mockUser);
+  useEffect(() => {
+    validateForm();
+    calculatePrice();
+  }, [form]);
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    const ageNum = Number(form.age);
+    const lengthNum = Number(form.length);
+
+    if (!form.age || isNaN(ageNum) || ageNum < 5 || ageNum > 120)
+      newErrors.age = "Age must be between 5 and 120.";
+
+    if (!form.personality) newErrors.personality = "Select personality.";
+    if (!form.houseColor) newErrors.houseColor = "Select house color.";
+    if (!form.wood) newErrors.wood = "Select wood type.";
+    if (!form.style) newErrors.style = "Select style.";
+    if (!form.woodTone) newErrors.woodTone = "Select wood tone.";
+
+    if (!form.length || isNaN(lengthNum) || lengthNum < 12.5 || lengthNum > 13.75)
+      newErrors.length = "Length must be 12.5 - 13.75 inches.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const logout = () => {
-    setUser(null);
-    setSavedWands([]);
+  const calculatePrice = () => {
+    let base = 39.99;
+
+    if (form.style === "Elegant") base += 10;
+    if (["Elder", "Ebony"].includes(form.wood)) base += 5;
+    if (form.personality === "Powerful" || form.personality === "Mysterious")
+      base += 5;
+    if (Number(form.length) > 13.5) base += 5;
+
+    if (base > 69.99) base = 69.99;
+
+    setPrice(base);
   };
 
-  // =============================
-  // FORM HANDLER
-  // =============================
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // =============================
-  // RARITY SYSTEM
-  // =============================
-  const calculateRarity = () => {
-    const score = Math.random();
-    if (score > 0.9) return "Legendary";
-    if (score > 0.75) return "Epic";
-    if (score > 0.5) return "Rare";
-    return "Common";
-  };
-
-  const generateStats = (rarityTier: string): { power: number; control: number; wisdom: number; charm: number } => {
-    const base = {
-      power: Math.floor(Math.random() * 50) + 50,
-      control: Math.floor(Math.random() * 50) + 50,
-      wisdom: Math.floor(Math.random() * 50) + 50,
-      charm: Math.floor(Math.random() * 50) + 50,
-    };
-
-    const multiplier =
-      rarityTier === "Legendary"
-        ? 1.4
-        : rarityTier === "Epic"
-        ? 1.25
-        : rarityTier === "Rare"
-        ? 1.1
-        : 1;
-
-    return Object.fromEntries(
-      Object.entries(base).map(([k, v]) => [k, Math.floor(v * multiplier)])
-    ) as { power: number; control: number; wisdom: number; charm: number };
-  };
-
-  // =============================
-  // GENERATE WAND
-  // =============================
   const generateWand = () => {
-    const { age, personality, house, wood, specialTrait, length, handleDiameter } = form;
-
-    const tone =
-      mode === "child"
-        ? "bright, whimsical, glowing, magical cartoon style"
-        : "cinematic, detailed, realistic magical craftsmanship";
-
-    const rarityTier = calculateRarity();
-    const generatedStats = generateStats(rarityTier);
-
-    const result = `✨ Your Custom Magic Wand ✨
-
-Wood: ${wood || "Mystic Maple"}
-Length: ${length} inches
-Handle Diameter: ${handleDiameter} inches
-
-Crafted for a ${age || "wise"}-year-old wizard.
-Personality: ${personality || "Brave and Curious"}
-Alignment: ${house || "Ancient Scholars"}
-
-Special Trait: ${specialTrait || "Reacts strongly to protective charms."}
-
-RARITY: ${rarityTier}
-
-Stats:
-Power: ${generatedStats.power}
-Control: ${generatedStats.control}
-Wisdom: ${generatedStats.wisdom}
-Charm: ${generatedStats.charm}
-`;
-
-    const prompt = `${tone}, light wood wand, twisted handle, elegant design, ${personality}, ${house}, ${length} inches long`;
-
-    setRarity(rarityTier);
-    setStats(generatedStats);
-    setDescription(result);
-    setImagePrompt(prompt);
+    if (!validateForm()) return;
+    setGenerated(true);
   };
 
-  // =============================
-  // SAVE TO CLOUD (Mocked)
-  // =============================
-  const saveWand = async () => {
-    if (!user) return alert("Login required");
-
-    const newSaved = [...savedWands, { ...form, description, rarity, stats }];
-    setSavedWands(newSaved);
-
-    // Replace with real DB call:
-    // await supabase.from('wands').insert({...})
-  };
-
-  // =============================
-  // SHARE TO SOCIAL IMAGE
-  // =============================
-  const shareImage = async () => {
-    const node = document.getElementById("share-card");
-    if (!node) return;
-
-    const dataUrl = await htmlToImage.toPng(node);
-    const link = document.createElement("a");
-    link.download = "my-magic-wand.png";
-    link.href = dataUrl;
-    link.click();
-  };
+  const isFormValid =
+    Object.keys(errors).length === 0 &&
+    Object.values(form).every((v) => v !== "");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-800 text-white p-6">
-      <div className="max-w-6xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-b from-black via-[#0f0f1f] to-black text-[#E5DCC3] flex items-center justify-center px-6 py-16">
+      <div className="max-w-2xl w-full space-y-8 bg-[#111827] p-10 rounded-2xl shadow-2xl border border-[#2f2f2f]">
 
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-bold text-center mb-6"
-        >
-          🪄 AI Magic Wand Creator
-        </motion.h1>
+        <h1 className="text-4xl font-bold text-center text-[#D4AF37] tracking-wider">
+          Wand Atelier
+        </h1>
 
-        {/* AUTH BUTTONS */}
-        <div className="flex justify-end gap-4 mb-4">
-          {!user ? (
-            <Button onClick={login}>Login</Button>
-          ) : (
-            <Button onClick={logout}>Logout</Button>
-          )}
-        </div>
+        <div className="space-y-6">
 
-        {/* MODE TOGGLE */}
-        <div className="flex justify-center gap-4 mb-8">
-          <Button onClick={() => setMode("child")}>
-            <Baby className="mr-2" size={16} /> Child Mode
-          </Button>
-          <Button onClick={() => setMode("adult")}>
-            <Crown className="mr-2" size={16} /> Adult Mode
-          </Button>
-        </div>
+          {/* Age */}
+          <Input
+            name="age"
+            type="number"
+            placeholder="Age of Wizard"
+            value={form.age}
+            onChange={handleChange}
+          />
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* FORM */}
-          <Card className="bg-white/10 backdrop-blur-xl border-none rounded-2xl shadow-2xl">
-            <CardContent className="p-6 grid gap-4">
-              <Input name="age" placeholder="Wizard Age" value={form.age} onChange={handleChange} />
-              <Input name="personality" placeholder="Personality" value={form.personality} onChange={handleChange} />
-              <Input name="house" placeholder="House" value={form.house} onChange={handleChange} />
-              <Input name="wood" placeholder="Wood" value={form.wood} onChange={handleChange} />
-              <Input name="length" placeholder="Length (inches)" value={form.length} onChange={handleChange} />
-              <Input name="handleDiameter" placeholder="Handle Diameter" value={form.handleDiameter} onChange={handleChange} />
-              <Textarea name="specialTrait" placeholder="Special Trait" value={form.specialTrait} onChange={handleChange} />
+          {/* Personality */}
+          <select
+            name="personality"
+            value={form.personality}
+            onChange={handleChange}
+            className="w-full p-3 rounded-md bg-black border border-gray-600"
+          >
+            <option value="">Select Personality</option>
+            <option>Brave</option>
+            <option>Powerful</option>
+            <option>Kind</option>
+            <option>Clever</option>
+            <option>Mysterious</option>
+            <option>Funny</option>
+            <option>Elegant</option>
+          </select>
 
-              <Button onClick={generateWand} className="flex gap-2">
-                <Sparkles size={18} /> Generate Wand
-              </Button>
+          {/* House Color */}
+          <select
+            name="houseColor"
+            value={form.houseColor}
+            onChange={handleChange}
+            className="w-full p-3 rounded-md bg-black border border-gray-600"
+          >
+            <option value="">Select House Color</option>
+            <option>Blue</option>
+            <option>Yellow</option>
+            <option>Green</option>
+            <option>Purple</option>
+          </select>
 
-              {description && (
-                <Button onClick={saveWand} className="bg-emerald-600 flex gap-2">
-                  <Save size={18} /> Save to Cloud
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          {/* Wood */}
+          <select
+            name="wood"
+            value={form.wood}
+            onChange={handleChange}
+            className="w-full p-3 rounded-md bg-black border border-gray-600"
+          >
+            <option value="">Select Wood</option>
+            <option>Oak</option>
+            <option>Dark Oak</option>
+            <option>Elder</option>
+            <option>Walnut</option>
+            <option>Maple</option>
+            <option>Cherry</option>
+            <option>Ebony</option>
+          </select>
 
-          {/* PREVIEW + SHARE */}
-          <div className="space-y-6">
-            {description && (
-              <Card id="share-card" className="bg-white/10 backdrop-blur-xl border-none rounded-2xl shadow-2xl">
-                <CardContent className="p-6 whitespace-pre-line text-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Star /> <strong>{rarity}</strong>
-                  </div>
-                  {description}
-                </CardContent>
-              </Card>
-            )}
+          {/* Style */}
+          <select
+            name="style"
+            value={form.style}
+            onChange={handleChange}
+            className="w-full p-3 rounded-md bg-black border border-gray-600"
+          >
+            <option value="">Select Style</option>
+            <option>Elegant</option>
+            <option>Simple</option>
+          </select>
 
-            {description && (
-              <Button onClick={shareImage} className="bg-pink-600 flex gap-2">
-                <Share2 size={18} /> Share to Social (Download Image)
-              </Button>
-            )}
+          {/* Wood Tone */}
+          <select
+            name="woodTone"
+            value={form.woodTone}
+            onChange={handleChange}
+            className="w-full p-3 rounded-md bg-black border border-gray-600"
+          >
+            <option value="">Wood Tone</option>
+            <option>Light</option>
+            <option>Dark</option>
+          </select>
+
+          {/* Length */}
+          <Input
+            name="length"
+            type="number"
+            step="0.01"
+            placeholder="Length (12.5 - 13.75 inches)"
+            value={form.length}
+            onChange={handleChange}
+          />
+
+          {/* Price Display */}
+          <div className="text-center text-xl font-semibold text-[#D4AF37]">
+            Estimated Price: ${price.toFixed(2)}
           </div>
+
+          <Button
+            onClick={generateWand}
+            disabled={!isFormValid}
+            className="w-full bg-[#D4AF37] text-black hover:bg-[#c49b2e] py-6 text-lg font-semibold"
+          >
+            <Sparkles className="mr-2 h-5 w-5" />
+            Generate My Wand
+          </Button>
         </div>
+
+        {/* Generated Preview Section */}
+        {generated && (
+          <div className="mt-8 p-6 bg-black rounded-xl border border-[#D4AF37] text-center">
+            <p className="mb-4 text-lg">✨ Your wand has been crafted!</p>
+
+            {/* Replace this image src with your AI generated image later */}
+            <img
+              src="/placeholder-wand.png"
+              alt="Generated Wand"
+              className="mx-auto mb-4 h-64 object-contain"
+            />
+
+            <Button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3">
+              Buy Now – ${price.toFixed(2)}
+            </Button>
+          </div>
+        )}
+
       </div>
-    </div>
+    </main>
   );
 }
