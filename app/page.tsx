@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Image as ImageIcon } from "lucide-react";
 
 type FormData = {
   age: string;
@@ -30,9 +30,15 @@ export default function Home() {
   const [price, setPrice] = useState<number>(39.99);
   const [generated, setGenerated] = useState(false);
 
+  // ✅ Image generation state
+  const [wandImageUrl, setWandImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
   useEffect(() => {
     validateForm();
     calculatePrice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form]);
 
   const validateForm = () => {
@@ -61,55 +67,91 @@ export default function Home() {
 
     if (form.style === "Elegant") base += 10;
     if (["Elder", "Ebony"].includes(form.wood)) base += 5;
-    if (form.personality === "Powerful" || form.personality === "Mysterious")
-      base += 5;
+    if (form.personality === "Powerful" || form.personality === "Mysterious") base += 5;
     if (Number(form.length) > 13.5) base += 5;
 
     if (base > 69.99) base = 69.99;
-
     setPrice(base);
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setGenerated(false);
+    setWandImageUrl(null);
+    setImageError(null);
   };
 
   const generateWand = () => {
     if (!validateForm()) return;
     setGenerated(true);
+    setWandImageUrl(null);
+    setImageError(null);
   };
 
   const isFormValid =
     Object.keys(errors).length === 0 &&
     Object.values(form).every((v) => v !== "");
 
+  // ✅ Wire to /api/generate-image (POST)
+  const generateWandImage = async () => {
+    if (!generated) {
+      setImageError("Generate your wand first, then create the artwork.");
+      return;
+    }
+
+    setIsGeneratingImage(true);
+    setImageError(null);
+    setWandImageUrl(null);
+
+    // Hogwarts dark aesthetic prompt tuned to your inputs
+    const prompt = `A single handcrafted magic wand, Hogwarts dark aesthetic, candlelit gothic workshop, dramatic rim lighting, centered product shot, no text, no logo. 
+Wand details: ${form.woodTone} ${form.wood} wood, ${form.style} style, house accent color ${form.houseColor}, length ${form.length} inches. 
+Wizard age ${form.age}, personality ${form.personality}. Ultra-detailed, high quality.`;
+
+    try {
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data: { imageUrl?: string; error?: string } = await res.json();
+
+      if (!res.ok || !data.imageUrl) {
+        throw new Error(data.error || "Image generation failed.");
+      }
+
+      setWandImageUrl(data.imageUrl);
+    } catch (err: any) {
+      setImageError(err?.message || "Image generation failed.");
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-black via-[#0f0f1f] to-black text-[#E5DCC3] flex items-center justify-center px-6 py-16">
       <div className="max-w-2xl w-full space-y-8 bg-[#111827] p-10 rounded-2xl shadow-2xl border border-[#2f2f2f]">
-
         <h1 className="text-4xl font-bold text-center text-[#D4AF37] tracking-wider">
           Wand Atelier
         </h1>
 
         <div className="space-y-6">
-
-          {/* Age */}
           <Input
             name="age"
             type="number"
             placeholder="Age of Wizard"
             value={form.age}
             onChange={handleChange}
+            className={errors.age ? "border-red-500" : ""}
           />
+          {errors.age && <p className="text-red-400 text-sm">{errors.age}</p>}
 
-          {/* Personality */}
           <select
             name="personality"
             value={form.personality}
             onChange={handleChange}
-            className="w-full p-3 rounded-md bg-black border border-gray-600"
+            className={`w-full p-3 rounded-md bg-black border ${errors.personality ? "border-red-500" : "border-gray-600"}`}
           >
             <option value="">Select Personality</option>
             <option>Brave</option>
@@ -120,13 +162,13 @@ export default function Home() {
             <option>Funny</option>
             <option>Elegant</option>
           </select>
+          {errors.personality && <p className="text-red-400 text-sm">{errors.personality}</p>}
 
-          {/* House Color */}
           <select
             name="houseColor"
             value={form.houseColor}
             onChange={handleChange}
-            className="w-full p-3 rounded-md bg-black border border-gray-600"
+            className={`w-full p-3 rounded-md bg-black border ${errors.houseColor ? "border-red-500" : "border-gray-600"}`}
           >
             <option value="">Select House Color</option>
             <option>Blue</option>
@@ -134,13 +176,13 @@ export default function Home() {
             <option>Green</option>
             <option>Purple</option>
           </select>
+          {errors.houseColor && <p className="text-red-400 text-sm">{errors.houseColor}</p>}
 
-          {/* Wood */}
           <select
             name="wood"
             value={form.wood}
             onChange={handleChange}
-            className="w-full p-3 rounded-md bg-black border border-gray-600"
+            className={`w-full p-3 rounded-md bg-black border ${errors.wood ? "border-red-500" : "border-gray-600"}`}
           >
             <option value="">Select Wood</option>
             <option>Oak</option>
@@ -151,32 +193,32 @@ export default function Home() {
             <option>Cherry</option>
             <option>Ebony</option>
           </select>
+          {errors.wood && <p className="text-red-400 text-sm">{errors.wood}</p>}
 
-          {/* Style */}
           <select
             name="style"
             value={form.style}
             onChange={handleChange}
-            className="w-full p-3 rounded-md bg-black border border-gray-600"
+            className={`w-full p-3 rounded-md bg-black border ${errors.style ? "border-red-500" : "border-gray-600"}`}
           >
             <option value="">Select Style</option>
             <option>Elegant</option>
             <option>Simple</option>
           </select>
+          {errors.style && <p className="text-red-400 text-sm">{errors.style}</p>}
 
-          {/* Wood Tone */}
           <select
             name="woodTone"
             value={form.woodTone}
             onChange={handleChange}
-            className="w-full p-3 rounded-md bg-black border border-gray-600"
+            className={`w-full p-3 rounded-md bg-black border ${errors.woodTone ? "border-red-500" : "border-gray-600"}`}
           >
             <option value="">Wood Tone</option>
             <option>Light</option>
             <option>Dark</option>
           </select>
+          {errors.woodTone && <p className="text-red-400 text-sm">{errors.woodTone}</p>}
 
-          {/* Length */}
           <Input
             name="length"
             type="number"
@@ -184,9 +226,10 @@ export default function Home() {
             placeholder="Length (12.5 - 13.75 inches)"
             value={form.length}
             onChange={handleChange}
+            className={errors.length ? "border-red-500" : ""}
           />
+          {errors.length && <p className="text-red-400 text-sm">{errors.length}</p>}
 
-          {/* Price Display */}
           <div className="text-center text-xl font-semibold text-[#D4AF37]">
             Estimated Price: ${price.toFixed(2)}
           </div>
@@ -194,31 +237,46 @@ export default function Home() {
           <Button
             onClick={generateWand}
             disabled={!isFormValid}
-            className="w-full bg-[#D4AF37] text-black hover:bg-[#c49b2e] py-6 text-lg font-semibold"
+            className="w-full bg-[#D4AF37] text-black hover:bg-[#c49b2e] py-6 text-lg font-semibold disabled:opacity-50"
           >
             <Sparkles className="mr-2 h-5 w-5" />
             Generate My Wand
           </Button>
         </div>
 
-        {/* Generated Preview Section */}
         {generated && (
-          <div className="mt-8 p-6 bg-black rounded-xl border border-[#D4AF37] text-center">
-            <p className="mb-4 text-lg">✨ Your wand has been crafted!</p>
+          <div className="mt-8 p-6 bg-black rounded-xl border border-[#D4AF37] text-center space-y-4">
+            <p className="text-lg">✨ Your wand has been crafted!</p>
 
-            {/* Replace this image src with your AI generated image later */}
-            <img
-              src="/placeholder-wand.png"
-              alt="Generated Wand"
-              className="mx-auto mb-4 h-64 object-contain"
-            />
+            <Button
+              onClick={generateWandImage}
+              disabled={isGeneratingImage}
+              className="w-full bg-[#2B1B3D] hover:bg-[#3a2755] text-[#E5DCC3] py-5 text-base font-semibold disabled:opacity-50"
+            >
+              <ImageIcon className="mr-2 h-5 w-5" />
+              {isGeneratingImage ? "Conjuring Image..." : "Generate Wand Image"}
+            </Button>
 
-            <Button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3">
+            {imageError && <p className="text-red-300 text-sm">{imageError}</p>}
+
+            {wandImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={wandImageUrl}
+                alt="Generated wand"
+                className="mx-auto rounded-lg border border-[#2B1B3D]"
+              />
+            ) : (
+              <p className="text-sm text-purple-300">
+                Click “Generate Wand Image” to create artwork.
+              </p>
+            )}
+
+            <Button className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-5 text-base font-semibold">
               Buy Now – ${price.toFixed(2)}
             </Button>
           </div>
         )}
-
       </div>
     </main>
   );
